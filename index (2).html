@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2c1240">
+<title>Gift Exchange</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:#2c1240;        /* wrapping paper */
+    --ribbon:#ffb81c;       /* marigold ribbon */
+    --ribbon-hi:#ffd45f;
+    --ribbon-lo:#d99400;
+    --ink:#24102f;
+    --muted:#6a5b78;
+    --line:#d8cde6;
+    --card:#faf7ff;
+    --name:#b3265a;         /* "handwritten" ink on the tag */
+    --err:#a3173f;
+    --hand:'Caveat','Segoe Print','Bradley Hand',cursive;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html { background: var(--paper); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--ink);
+    font: 400 17px/1.5 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(rgba(255,255,255,.07) 1.6px, transparent 1.8px),
+      radial-gradient(rgba(255,255,255,.05) 1.6px, transparent 1.8px);
+    background-size: 30px 30px;
+    background-position: 0 0, 15px 15px;
+  }
+
+  /* The ribbon runs the full height of the page, behind everything */
+  body::before {
+    content: ""; position: fixed; top: 0; bottom: 0; left: 50%;
+    width: clamp(40px, 11vw, 76px); transform: translateX(-50%);
+    background: linear-gradient(90deg, var(--ribbon-lo) 0, var(--ribbon) 16%, var(--ribbon-hi) 50%, var(--ribbon) 84%, var(--ribbon-lo) 100%);
+    box-shadow: 0 0 40px rgba(8,0,18,.35);
+  }
+
+  .page { position: relative; z-index: 1; width: min(440px, calc(100% - 32px)); margin: 0 auto; padding: 84px 0 64px; }
+
+  .box {
+    position: relative; background: var(--card); border-radius: 20px;
+    padding: 58px 28px 28px;
+    box-shadow: 0 30px 60px -20px rgba(8,0,18,.65);
+  }
+  .bow {
+    position: absolute; left: 50%; top: -52px; width: 156px; transform: translateX(-50%);
+    filter: drop-shadow(0 6px 6px rgba(8,0,18,.35)); pointer-events: none;
+  }
+
+  h1 { margin: 0; text-align: center; font-weight: 800; font-size: 2.1rem; line-height: 1.1; letter-spacing: -.025em; }
+  .sub { margin: 10px auto 22px; text-align: center; color: var(--muted); max-width: 32ch; }
+
+  label { display: block; margin: 16px 0 6px; font-weight: 600; font-size: .95rem; }
+  input {
+    width: 100%; padding: 13px 14px; font: inherit; color: var(--ink); background: #fff;
+    border: 2px solid var(--line); border-radius: 12px; transition: border-color .15s;
+  }
+  input:focus-visible { outline: 3px solid var(--ribbon); outline-offset: 1px; border-color: var(--ink); }
+
+  .btn {
+    margin-top: 22px; width: 100%; padding: 14px; font: inherit; font-weight: 700; color: var(--ink);
+    background: var(--ribbon); border: 0; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 3px 0 var(--ribbon-lo); transition: transform .1s, box-shadow .1s, background .15s;
+  }
+  .btn:hover { background: #ffc43a; }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ribbon-lo); }
+  .btn:disabled { opacity: .7; cursor: progress; }
+  .btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  #msg { margin: 14px 0 0; color: var(--err); font-size: .95rem; text-align: center; }
+  #msg:empty { display: none; }
+
+  /* The result: a gift tag hanging from the ribbon */
+  #result {
+    width: min(340px, 100%); margin: 26px auto 0; transform-origin: 50% 0;
+    filter: drop-shadow(0 18px 18px rgba(8,0,18,.45));
+  }
+  #result.swing { animation: swing 1.5s cubic-bezier(.3,.6,.3,1) both; }
+  .tag {
+    position: relative; background: #fff; text-align: center; padding: 58px 24px 20px;
+    clip-path: polygon(28px 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 0 100%, 0 28px);
+  }
+  .tag::before {
+    content: ""; position: absolute; top: 16px; left: 50%; width: 18px; height: 18px; margin-left: -9px;
+    border-radius: 50%; background: var(--ribbon); box-shadow: inset 0 2px 3px rgba(0,0,0,.3);
+  }
+  .tag-lead { margin: 0; color: var(--muted); font-size: .95rem; }
+  .tag h2 {
+    margin: 6px 0 0; font: 700 clamp(2.3rem, 10vw, 3.1rem)/1.05 var(--hand); color: var(--name);
+    overflow-wrap: anywhere; transform: rotate(-2deg);
+  }
+  .tag-from { margin: 20px 0 0; padding-top: 10px; border-top: 2px dashed var(--line); color: var(--muted); font-size: .95rem; }
+  .tag-from span { font: 700 1.5rem/1 var(--hand); color: var(--ink); text-transform: capitalize; margin-left: 4px; }
+  .link {
+    margin-top: 10px; padding: 6px 10px; font: inherit; font-size: .9rem; color: var(--muted);
+    background: none; border: 0; text-decoration: underline; cursor: pointer; border-radius: 8px;
+  }
+  .link:hover { color: var(--ink); }
+  .link:focus-visible { outline: 3px solid var(--ribbon); outline-offset: 1px; }
+
+  @keyframes swing {
+    0%   { opacity: 0; transform: translateY(-18px) rotate(-12deg); }
+    30%  { opacity: 1; transform: rotate(7deg); }
+    55%  { transform: rotate(-4deg); }
+    75%  { transform: rotate(2deg); }
+    100% { transform: rotate(0); }
+  }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    #result.swing { animation: fade .3s both; }
+    .btn { transition: none; }
+  }
+  @media (max-width: 380px) {
+    .box { padding: 58px 20px 24px; }
+    h1 { font-size: 1.85rem; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="box">
+    <svg class="bow" viewBox="0 0 200 120" aria-hidden="true">
+      <defs>
+        <g id="loop">
+          <path d="M96 66C84 30 40 8 14 24C-2 36 6 74 34 84C60 94 88 84 96 66Z" fill="#ffc43a" stroke="#7a4a00" stroke-opacity=".45" stroke-width="2"/>
+          <path d="M96 66C78 46 52 36 30 40C28 58 40 74 60 80C76 84 90 78 96 66Z" fill="#e59b00" opacity=".6"/>
+        </g>
+        <path id="tail" d="M92 74L60 114L82 108L96 118L104 78Z" fill="#e59b00" stroke="#7a4a00" stroke-opacity=".45" stroke-width="2"/>
+      </defs>
+      <use href="#tail"/>
+      <use href="#tail" transform="translate(200 0) scale(-1 1)"/>
+      <use href="#loop"/>
+      <use href="#loop" transform="translate(200 0) scale(-1 1)"/>
+      <rect x="84" y="50" width="32" height="36" rx="12" fill="#ffb81c" stroke="#7a4a00" stroke-opacity=".45" stroke-width="2"/>
+      <rect x="92" y="56" width="8" height="18" rx="4" fill="#ffe39a" opacity=".8"/>
+    </svg>
+
+    <h1>Gift Exchange</h1>
+    <p class="sub">Type your name to find out who you're giving a gift to. Nobody else can see your result.</p>
+
+    <form id="f" autocomplete="off">
+      <label for="name">Your full name</label>
+      <input id="name" required placeholder="e.g. Jane Isaac">
+      <div id="codeWrap" hidden>
+        <label for="code">Your personal code</label>
+        <input id="code" placeholder="The code the organiser sent you">
+      </div>
+      <button id="go" class="btn" type="submit">Show me</button>
+    </form>
+    <p id="msg" role="status"></p>
+  </div>
+
+  <section id="result" hidden aria-live="polite">
+    <div class="tag">
+      <p class="tag-lead">You're giving a gift to</p>
+      <h2 id="who"></h2>
+      <p class="tag-from">From <span id="from"></span></p>
+      <button id="hide" class="link" type="button">Hide result</button>
+    </div>
+  </section>
+</main>
+
+<script src="core.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let data = null, timer = null;
+
+  fetch('data.json', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      data = d;
+      if (!d.entries || !d.entries.length) $('msg').textContent = 'The draw isn\'t published yet. Check back soon.';
+      if (d.needsCode) $('codeWrap').hidden = false;
+    })
+    .catch(() => { $('msg').textContent = 'Could not load the draw. Refresh the page, or try again later.'; });
+
+  function hideResult() {
+    clearTimeout(timer);
+    $('result').hidden = true; $('result').classList.remove('swing');
+    $('who').textContent = ''; $('from').textContent = '';
+    $('name').value = ''; $('code').value = '';
+  }
+  $('hide').onclick = hideResult;
+
+  $('f').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('msg').textContent = ''; $('result').hidden = true; $('result').classList.remove('swing');
+    if (!data || !data.entries || !data.entries.length) return;
+    const typed = $('name').value.trim();
+    $('go').disabled = true; $('go').textContent = 'Checking…';
+    const to = await GiftCore.openEntry(data, $('name').value, $('code').value);
+    $('go').disabled = false; $('go').textContent = 'Show me';
+    if (!to) {
+      $('msg').textContent = data.needsCode
+        ? 'That name and code don\'t match. Check the spelling and try again.'
+        : 'That name wasn\'t found. Check the spelling and use the name the organiser has for you.';
+      return;
+    }
+    $('who').textContent = to;
+    $('from').textContent = typed;
+    $('result').hidden = false;
+    void $('result').offsetWidth;              // restart the animation if it ran before
+    $('result').classList.add('swing');
+    $('result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+    timer = setTimeout(hideResult, 60000);     // hides itself after 1 minute
+  });
+</script>
+</body>
+</html>
