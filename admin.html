@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gift Exchange – Organiser</title>
+<style>
+  :root { --bg:#f4f1ea; --card:#fff; --ink:#1f2430; --muted:#6b7280; --accent:#c2410c; --line:#e5e1d8; --ok:#15803d; --bad:#b91c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --card:#20232b; --ink:#f1f1f1; --muted:#9aa0aa; --accent:#fb923c; --line:#32363f; --ok:#4ade80; --bad:#f87171; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:20px 16px 60px; background:var(--bg); color:var(--ink);
+         font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:680px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; margin-bottom:16px; }
+  h1 { margin:0 0 4px; } h2 { margin:0 0 8px; font-size:1.1rem; }
+  .muted { color:var(--muted); font-size:.92rem; }
+  textarea { width:100%; min-height:240px; padding:12px; font:inherit; border:1px solid var(--line);
+             border-radius:10px; background:transparent; color:var(--ink); resize:vertical; }
+  button { padding:11px 18px; font-size:1rem; font-weight:600; border:0; border-radius:10px;
+           background:var(--accent); color:#fff; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  button:disabled { opacity:.6; cursor:wait; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+  .err { color:var(--bad); } .ok { color:var(--ok); font-weight:600; }
+  ul { margin:6px 0 0; padding-left:20px; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  code { background:rgba(127,127,127,.15); padding:1px 6px; border-radius:5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎁 Organiser</h1>
+  <p class="muted">Paste the names, generate the draw, download <code>data.json</code>. You will <b>not</b> see who is paired with whom.</p>
+
+  <div class="card">
+    <h2>1. Names</h2>
+    <p class="muted">One name per line (you can paste straight from your sheet's column B).
+      People who share any name word (e.g. both have “Isaac”) are never paired together.
+      To control this yourself, add a family tag after <code>|</code>, e.g. <code>Odumusi Olamide | Odumusi</code>.</p>
+    <textarea id="names" placeholder="Paul Oluwapelumi Owolaye&#10;Olaboye David Tobi&#10;Dare Osilaja&#10;…"></textarea>
+    <div id="check" class="muted" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Options</h2>
+    <label><input type="checkbox" id="useCodes"> Give everyone a personal code (safer: nobody can look up another person just by typing their name)</label>
+    <div class="row"><button id="gen">Generate draw</button></div>
+    <div id="status" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="outCard" hidden>
+    <h2>3. Publish</h2>
+    <p class="muted">Download this file and replace <code>data.json</code> in your GitHub repo. Generating again creates a completely new draw, so only do it once.</p>
+    <div class="row"><button id="dl">Download data.json</button></div>
+    <div id="codesBox" hidden style="margin-top:18px">
+      <h2>Personal codes</h2>
+      <p class="muted">Send each person only their own code. These codes do not reveal any pairing.</p>
+      <div class="row"><button class="ghost" id="dlCodes">Download codes.csv</button></div>
+      <table id="codesTable"></table>
+    </div>
+  </div>
+</div>
+
+<script src="core.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  let current = null;
+
+  function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+
+  function refreshCheck() {
+    const people = GiftCore.parseLines($('names').value);
+    const dups = GiftCore.findDuplicates(people);
+    const groups = GiftCore.sharedGroups(people);
+    let h = `<b>${people.length}</b> name${people.length === 1 ? '' : 's'}.`;
+    if (dups.length) h += `<div class="err">Duplicate names: ${dups.map(esc).join(', ')}</div>`;
+    if (groups.length) {
+      h += '<div style="margin-top:6px">These people share a name, so they won\'t be paired with each other. If any group is a false match, add a family tag with <code>|</code>:</div><ul>' +
+        groups.map(([t, names]) => `<li><b>${esc(t)}</b>: ${names.map(esc).join(', ')}</li>`).join('') + '</ul>';
+    }
+    $('check').innerHTML = h;
+  }
+  $('names').addEventListener('input', refreshCheck);
+
+  function download(filename, text, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  $('gen').onclick = async () => {
+    const people = GiftCore.parseLines($('names').value);
+    $('outCard').hidden = true; $('status').innerHTML = '';
+    if (people.length < 3) { $('status').innerHTML = '<span class="err">Add at least 3 names.</span>'; return; }
+    const dups = GiftCore.findDuplicates(people);
+    if (dups.length) { $('status').innerHTML = `<span class="err">Remove duplicate names first: ${dups.map(esc).join(', ')}</span>`; return; }
+
+    $('gen').disabled = true; $('gen').textContent = 'Generating…';
+    await new Promise(r => setTimeout(r, 30));
+    const res = await GiftCore.buildData(people, $('useCodes').checked);
+    $('gen').disabled = false; $('gen').textContent = 'Generate draw';
+
+    if (!res) {
+      $('status').innerHTML = '<span class="err">No valid arrangement exists with these rules (a family is probably too large for the group). Use family tags with <code>|</code> to loosen the rules, or add more people.</span>';
+      return;
+    }
+    current = res;
+    $('status').innerHTML = `<span class="ok">✔ Draw generated for ${people.length} people.</span>`;
+    $('outCard').hidden = false;
+    $('codesBox').hidden = !res.codes.length;
+    $('codesTable').innerHTML = '<tr><th>Name</th><th>Code</th></tr>' +
+      res.codes.map(c => `<tr><td>${esc(c.name)}</td><td><code>${c.code}</code></td></tr>`).join('');
+  };
+
+  $('dl').onclick = () => download('data.json', JSON.stringify(current.data), 'application/json');
+  $('dlCodes').onclick = () => download('codes.csv',
+    'Name,Code\n' + current.codes.map(c => `"${c.name.replace(/"/g, '""')}",${c.code}`).join('\n'), 'text/csv');
+
+  refreshCheck();
+</script>
+</body>
+</html>
